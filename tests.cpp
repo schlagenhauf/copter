@@ -7,6 +7,8 @@
 #define USE_MATH_DEFINES_
 #include <math.h>
 
+#define _GTEST_ON
+
 #include "Quaternion.h"
 #include "Pid.h"
 
@@ -32,6 +34,62 @@ TEST(quaternion_tests, quaternion_ctors)
   ASSERT_FLOAT_EQ(qt3.y, 0.f);
   ASSERT_FLOAT_EQ(qt3.z, 0.f);
 
+  Quaternion qt4 (Vec3<float>(1,0,0), Vec3<float>(0,0,1), M_PI / 2);
+  ASSERT_FLOAT_EQ(qt4.rotAngleInDeg(), 120.f);
+}
+
+TEST(quaternion_tests, quaternion_rollpitchyaw)
+{
+  Quaternion qt1 (0.1, 0, 0);
+  ASSERT_FLOAT_EQ(qt1.getRoll(), 0.1f);
+
+  Quaternion qt2 (0, 0.2, 0);
+  ASSERT_FLOAT_EQ(qt2.getPitch(), 0.2f);
+
+  Quaternion qt3 (0, 0, 0.3);
+  ASSERT_FLOAT_EQ(qt3.getYaw(), 0.3f);
+}
+
+TEST(quaternion_tests, quaternion_inverse)
+{
+  Quaternion qt (M_PI / 4, 0, 0);
+  Quaternion invQt = qt.inverse();
+
+  ASSERT_FLOAT_EQ(invQt.getRoll(), - M_PI / 4);
+}
+
+TEST(quaternion_tests, quaternion_quaternion_multiplication)
+{
+  Quaternion qt1 (M_PI / 4, 0, 0);
+  Quaternion qt2 (- M_PI / 2, 0, 0);
+  Quaternion qt3 (0, M_PI / 2, 0);
+  Quaternion result1 = qt1 * qt2;
+  Quaternion result2 = qt2 * qt1;
+  Quaternion result3 = qt1 * qt3;
+  Quaternion result4 = qt3 * qt1;
+
+  result3.normalize();
+
+  ASSERT_FLOAT_EQ(result1.getRoll(), - M_PI / 4);
+  ASSERT_FLOAT_EQ(result2.getRoll(), - M_PI / 4);
+  ASSERT_FLOAT_EQ(result3.getRoll(), 0);
+  ASSERT_FLOAT_EQ(result3.getYaw(), M_PI / 4);
+  ASSERT_FLOAT_EQ(result3.getPitch(), M_PI / 2);
+  ASSERT_FLOAT_EQ(result4.getRoll(), 0);
+}
+
+TEST(quaternion_tests, quaternion_scalar_multiplication)
+{
+  Quaternion qt (M_PI / 4, 0, 0);
+  Quaternion scaledQt = qt * 2.f;
+  ASSERT_FLOAT_EQ(scaledQt.w, qt.w * 2.f);
+  ASSERT_FLOAT_EQ(scaledQt.x, qt.x * 2.f);
+  ASSERT_FLOAT_EQ(scaledQt.y, qt.y * 2.f);
+  ASSERT_FLOAT_EQ(scaledQt.z, qt.z * 2.f);
+
+  scaledQt.normalize();
+
+  //ASSERT_FLOAT_EQ(scaledQt.getRoll(), M_PI / 2);
 }
 
 TEST(pid_tests, pid_ctor)

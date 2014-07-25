@@ -25,9 +25,13 @@
  * A Quaternion is a complex value in 4D space
  * (q = q0 + q*i + q2*j + q3*k, i*j*k = -1)
  * A normalized quaternion (unit quaternion) can be used to efficiently and
- * elegantly represent rotations. An advantage over euler angles are that there
- * is no gimbal lock (and no ugly case distinctions when "flipping over").
- * It also needs less operations per calculation than a matrix rotation.
+ * elegantly represent rotations. An advantage over euler angles is the
+ * avoidance of gimbal locks (and no ugly case distinctions).
+ * It also needs less operations per operation than a matrix rotation.
+ *
+ * Wherever axes are needed, +x * denotes "forward" and the roll rotation axis,
+ * +y denotes "right" and the pitch rotation axis, and +z "downward" and the yaw
+ * rotation axis.
  *
  * REMARK:
  * Due to performance reasons, this class does no checking for you whether you use it correctly.
@@ -40,6 +44,9 @@
 
 #define _USE_MATH_DEFINES
 
+#ifdef _GTEST_ON
+#include <gtest/gtest.h>
+#endif
 #include <math.h>
 #include <cmath>
 #include <cstring>
@@ -66,12 +73,19 @@ namespace Geometry
     // Creates a quaternion which represents the rotation between two unit vectors
     template <typename T, typename U>
     Quaternion(Vec3<T> const& v1, Vec3<U> const& v2);
+    // Creates a quaternion which represents the rotation between two unit
+    // vectors with an additional rotation around the vector axis
+    template <typename T, typename U>
+    Quaternion(Vec3<T> const& v1, Vec3<U> const& v2, double axialRotation);
 
     void operator=(Quaternion const& rOp);
     // Quaternion multiplication. Results in an addition of the underlying
     // rotations
     Quaternion operator*(Quaternion const& rOp) const;
     // Quaternion scaling
+#ifdef _GTEST_ON
+    FRIEND_TEST(quaternion_tests, quaternion_scalar_multiplication);
+#endif
     Quaternion operator*(float const& rOp) const;
     // Quaternion addition
     Quaternion operator+(Quaternion const& rOP) const;
@@ -96,6 +110,10 @@ namespace Geometry
     void toByteArray(char* bArray) const;
     // Return the rotation in degrees
     double rotAngleInDeg();
+
+    double getRoll() const;
+    double getPitch() const;
+    double getYaw() const;
 
     static float fastSqrt(float number);
   };
@@ -157,6 +175,26 @@ namespace Geometry
     this->z = axis.z;
   }
 
+  /**
+   *
+   * Constructor from two vectors. The resulting quaternion represents the
+   * rotation between the vectors.
+   *
+   * @param v1 First vector
+   * @param v2 Second vector
+   * @param rotation along the vector axis
+   */
+  template <typename T, typename U>
+  Quaternion::Quaternion(Vec3<T> const& v1, Vec3<U> const& v2, double axialRotation)
+  {
+    this->w = sqrt(v1.norm2() * v2.norm2()) + v1.dot(v2);
+    Vec3<U> axis = v1.cross(v2);
+    this->x = axis.x;
+    this->y = axis.y;
+    this->z = axis.z;
+
+    *this = *this * Quaternion(0, 0, axialRotation);
+  }
 
   /**
    * Assigns the values of the right hand side quaternion
@@ -192,14 +230,15 @@ namespace Geometry
   }
 
   /**
+   *
    * Scalar Multiplication Operator. Multiplication of a quaternion with a
    * scalar, corresponds to a scaling of the represented rotation.
    * It is necessary to normalize the quaternion beforehand!
    *
-   * @param rOp Right hand side operand (float)
+   * @param rOp Right hand side operand (double)
    * @return A new quaternion.
    */
-  Quaternion Quaternion::operator*(float const& rOp) const
+  Quaternion Quaternion::operator*(double const& rOp) const
   {
     return Quaternion ( rOp == 0? 1 : w * rOp, x * rOp, y * rOp, z * rOp);
   }
@@ -233,7 +272,7 @@ namespace Geometry
    */
   void Quaternion::normalize()
   {
-    double norm = fastSqrt(w*w + x*x + y*y + z*z);
+    double norm = sqrt(w*w + x*x + y*y + z*z);
     this->w /= norm;
     this->x /= norm;
     this->y /= norm;
@@ -360,6 +399,23 @@ namespace Geometry
   {
     normalize();
     return 2*acos(w) * 180 / M_PI;
+  }
+
+  // WARNING: Pitch and Roll switched to get correct output.
+  // Error may reside elsewhere
+  double Quaternion::getPitch() const
+  {
+    return atan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z);
+  }
+
+  double Quaternion::getYaw() const
+  {
+    return asin(2 * x * y + 2 * z * w);
+  }
+
+  double Quaternion::getRoll() const
+  {
+    return atan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z);
   }
 
   float Quaternion::fastSqrt(float number)
