@@ -35,8 +35,8 @@
  */
 
 
-#ifndef GEOMETRICS_QUATERNION_H_
-#define GEOMETRICS_QUATERNION_H_
+#ifndef GEOMETRY_QUATERNION_H_
+#define GEOMETRY_QUATERNION_H_
 
 #define _USE_MATH_DEFINES
 
@@ -45,7 +45,7 @@
 #include <cstring>
 #include "./Vec3.h"
 
-namespace Geometrics
+namespace Geometry
 {
   // Quaternion class with common operation methods. Keep in mind that almost all
   // methods require a normalized quaternion (unit quaternion) to operate on.
@@ -71,11 +71,13 @@ namespace Geometrics
     // Quaternion multiplication. Results in an addition of the underlying
     // rotations
     Quaternion operator*(Quaternion const& rOp) const;
+    // Quaternion scaling
+    Quaternion operator*(float const& rOp) const;
     // Quaternion addition
     Quaternion operator+(Quaternion const& rOP) const;
 
     // Returns the inverse
-    Quaternion inverse();
+    Quaternion inverse() const;
 
     // Normalizes the 4 elements
     void normalize();
@@ -94,6 +96,8 @@ namespace Geometrics
     void toByteArray(char* bArray) const;
     // Return the rotation in degrees
     double rotAngleInDeg();
+
+    static float fastSqrt(float number);
   };
 
   /**
@@ -188,7 +192,6 @@ namespace Geometrics
   }
 
   /**
-   *
    * Scalar Multiplication Operator. Multiplication of a quaternion with a
    * scalar, corresponds to a scaling of the represented rotation.
    * It is necessary to normalize the quaternion beforehand!
@@ -198,12 +201,7 @@ namespace Geometrics
    */
   Quaternion Quaternion::operator*(float const& rOp) const
   {
-    Quaternion retVal;
-    retVal.w = w * rOp;
-    retVal.x = w * rOp;
-    retVal.y = w * rOp;
-    retVal.z = w * rOp;
-    return retVal;
+    return Quaternion ( rOp == 0? 1 : w * rOp, x * rOp, y * rOp, z * rOp);
   }
 
   /**
@@ -223,7 +221,7 @@ namespace Geometrics
   /*
    * Returns the inverse of the underlying quaternion as a new instance.
    */
-  Quaternion Quaternion::inverse()
+  Quaternion Quaternion::inverse() const
   {
     return Quaternion(w, -x, -y, -z);
   }
@@ -235,7 +233,7 @@ namespace Geometrics
    */
   void Quaternion::normalize()
   {
-    double norm = sqrt(w*w + x*x + y*y + z*z);
+    double norm = fastSqrt(w*w + x*x + y*y + z*z);
     this->w /= norm;
     this->x /= norm;
     this->y /= norm;
@@ -362,6 +360,23 @@ namespace Geometrics
   {
     normalize();
     return 2*acos(w) * 180 / M_PI;
+  }
+
+  float Quaternion::fastSqrt(float number)
+  {
+    long i;
+    float x2, y;
+    const float threehalfs = 1.5F;
+
+    x2 = number * 0.5F;
+    y  = number;
+    i  = * ( long * ) &y;                       // evil floating point bit level hacking
+    i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
+    y  = * ( float * ) &i;
+    y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+    y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+    return y;
   }
 }
 #endif  // GEOMETRICS_QUATERNION_H_
