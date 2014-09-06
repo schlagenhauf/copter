@@ -36,6 +36,45 @@ namespace Geometry
       retVal.z = x*v.y - y*v.x;
       return retVal;
     }
+
+    inline Vec3<T> operator+(const Vec3<T>& rhs) const
+    {
+      return Vec3<T>(this->x + rhs.x, this->y + rhs.y, this->z + rhs.z);
+    }
+
+    inline Vec3<T> operator-(const Vec3<T>& rhs) const
+    {
+      return Vec3<T>(this->x - rhs.x, this->y - rhs.y, this->z - rhs.z);
+    }
+
+    template<typename U>
+    inline Vec3<T> operator*(const U& rhs) const
+    {
+      return Vec3<T> (this->x * rhs, this->y * rhs, this->z * rhs);
+    }
+
+    template<typename U>
+    inline void operator+=(const Vec3<U>& rhs)
+    {
+      this->x += rhs.x;
+      this->y += rhs.y;
+      this->z += rhs.z;
+    }
+
+    template<typename U>
+    inline void operator/=(const U& rhs)
+    {
+      this->x /= rhs;
+      this->y /= rhs;
+      this->z /= rhs;
+    }
+
+    template<typename U>
+    Vec3<U> changeType() const
+    {
+      return Vec3<U>((U) this->x, (U) this->y, (U) this->z);
+    }
+
   };
 }
 

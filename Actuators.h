@@ -3,6 +3,7 @@
 
 #include "Quaternion.h"
 #include "Vec3.h"
+#include "Pid.h"
 
 // Motor specs
 #define NUM_ACTUATORS 4
@@ -21,7 +22,7 @@
 // Handy singleton define
 #define ActuatorsST (*(Actuators::getInst()))
 
-using namespace Geometrics;
+using namespace Geometry;
 
 class Actuators
 {
@@ -32,11 +33,14 @@ class Actuators
   float intRollError_, intPitchError_, intYawError_;
   float dRollError_, dPitchError_, dYawError_;
 
-  float p_, i_, d_;
+  Pid pid_;
+
 
  public:
 
   float powers_[NUM_ACTUATORS];
+
+  Actuators (float p, float i, float d) : pid_(p,i,d) {};
 
   // Singleton instance
   static Actuators* _inst;
@@ -52,11 +56,8 @@ class Actuators
   // Sets all motor powers to zero
   void zeroMotorValues();
 
-  // Sets the PID parameters
-  void setPIDParameters(float p, float i, float d);
-
   // Compensates unwanted roations by countersteering
-  void pid(Quaternion& actual, Quaternion& target);
+  void generateMotorValues(Quaternion& actual, Quaternion& target, float scale);
 
   // Increases the power of all actuators by <amount>.
   // negative values result in a descend
@@ -81,7 +82,7 @@ Actuators* Actuators::_inst = NULL;
 Actuators* Actuators::getInst()
 {
   if (!_inst)
-    _inst = new Actuators();
+    _inst = new Actuators(0.5, 0.0, 1.0);
 
   return _inst;
 }
@@ -136,35 +137,15 @@ void Actuators::zeroMotorValues()
     powers_[i] = 0;
 }
 
-void Actuators::setPIDParameters(float p, float i, float d)
+void Actuators::generateMotorValues(Quaternion& actual, Quaternion& target, float scale)
 {
-  p_ = p;
-  i_ = i;
-  d_ = d;
-}
-
-void Actuators::pid(Quaternion& actual, Quaternion& target)
-{
-  // get the difference in rotation
-  Quaternion delta = target * actual.inverse();
-
-  float dRoll = atan2(2 * delta.y*delta.w - 2 * delta.x*delta.z, 1 - 2 * delta.y * delta.y - 2 * delta.z * delta.z);
-  float dPitch = asin(2 * delta.x*delta.y + 2 * delta.z*delta.w);
-  float dYaw = atan2(2 * delta.x*delta.w - 2 * delta.y*delta.z, 1 - 2 * delta.x * delta.x - 2 * delta.z * delta.z);
-
-  intRollError_ += dRoll;
-  intPitchError_ += dPitch;
-  intYawError_ += dYaw;
-
-  float rollAction = p_ * dRoll + i_ * intRollError_ + d_ * (dRoll-dRollError_);
-  float yawAction = p_ * dYaw + i_ * intYawError_ + d_ * (dYaw-dYawError_);
-  float pitchAction = p_ * dPitch + i_ * intPitchError_ + d_ * (dPitch-dPitchError_);
+  Vec3<float> action = pid_(actual, target);
 
   zeroMotorValues();
-  setForward(pitchAction);
-  setLeft(rollAction);
-  setTurn(yawAction);
-  applyMotorValues();
+  setLeft(action.x * scale);
+  setForward(action.y * scale);
+  setTurn(action.z * scale);
+  //applyMotorValues();
 }
 
 void Actuators::setAscend(float speed)

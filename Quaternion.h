@@ -86,7 +86,7 @@ namespace Geometry
 #ifdef _GTEST_ON
     FRIEND_TEST(quaternion_tests, quaternion_scalar_multiplication);
 #endif
-    Quaternion operator*(float const& rOp) const;
+    Quaternion operator*(double const& rOp) const;
     // Quaternion addition
     Quaternion operator+(Quaternion const& rOP) const;
 

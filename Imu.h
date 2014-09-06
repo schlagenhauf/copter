@@ -15,56 +15,32 @@
 #define MAG_CONFIG2 0x01
 #define MAG_MODE 0x02
 
-// Sensor Specs, TODO: actually use them
-#define GYRO_SNSTV 14.375f
-#define ACCL_SNSTV 256.f
-#define MAG_SNSTV 1090.f
+// sensor sensitivities
+#define GYRO_SNSTV (1.0 / 14.375)
+#define ACCL_SNSTV (1.0 / 256.0)
+#define MAG_SNSTV (1.0 / 1090.0)
 
 #include "Vec3.h"
 
-// Handy singleton define
-#define ImuST (*(Imu::getInst()))
 
 class Imu
 {
  private:
-  static Imu* _inst;
 
  public:
-  static Imu* getInst();
-  static void del();
-
   static inline void setRegister(uint8_t devAddr, uint8_t regAddr, uint8_t value, uint8_t stop = true);
-  void initImu();
+  void init();
   void getData();
-  void setNeutral(unsigned short iterations = 10, unsigned short dly = 20); Vec3<float> accl_;
-  Vec3<float> gyro_;
-  Vec3<float> mag_;
+  void setNeutral(unsigned short iterations = 10, unsigned short dly = 20);
 
-  Vec3<float> neutralAccl_;
-  Vec3<float> neutralGyro_;
-  Vec3<float> neutralMag_;
+  Vec3<double> accl;
+  Vec3<double> gyro;
+  Vec3<double> mag;
+
+  Vec3<double> neutralAccl_;
+  Vec3<double> neutralGyro_;
+  Vec3<double> neutralMag_;
 };
-
-// Singleton instance
-Imu* Imu::_inst = NULL;
-
-Imu* Imu::getInst()
-{
-  if (!_inst)
-    _inst = new Imu;
-
-  return _inst;
-}
-
-void Imu::del()
-{
-  if (_inst)
-  {
-    delete _inst;
-    _inst = NULL;
-  }
-}
 
 inline void Imu::setRegister(uint8_t devAddr, uint8_t regAddr, uint8_t value, uint8_t stop)
 {
@@ -77,7 +53,7 @@ inline void Imu::setRegister(uint8_t devAddr, uint8_t regAddr, uint8_t value, ui
   Wire.endTransmission(stop);
 }
 
-inline void Imu::initAcclSensor()
+inline void Imu::init()
 {
   // accelerometer config
   setRegister(ADDR_ACCL, ACCL_POWER_CTL, BIT3); // enable measurement
@@ -107,39 +83,41 @@ inline void Imu::getData()
   // read out accelerometer
   setRegister(ADDR_ACCL, ACCL_DATAXYZ, 0, false);
   Wire.requestFrom(ADDR_ACCL, 6);
-  accl_.x = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
-  accl_.y = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
-  accl_.z = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
+  accl.x = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
+  accl.y = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
+  accl.z = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
   Wire.endTransmission(true);
 
   // read out gyrometer
   setRegister(ADDR_GYRO, GYRO_DATAXYZ, 0, false);
   Wire.requestFrom(ADDR_GYRO, 6);
-  gyro_.x = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
-  gyro_.y = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
-  gyro_.z = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
+  gyro.x = (double) ((short) (Wire.read() * TWOPOWEIGHT + Wire.read())) * GYRO_SNSTV;
+  gyro.y = (double) ((short) (Wire.read() * TWOPOWEIGHT + Wire.read())) * GYRO_SNSTV;
+  gyro.z = (double) ((short) (Wire.read() * TWOPOWEIGHT + Wire.read())) * GYRO_SNSTV;
+  Wire.endTransmission(true);
 
   // read out magnetometer
   setRegister(ADDR_MAG,0x03, 0); // reset read cursor to the first data field
   Wire.requestFrom(ADDR_MAG, 6);
-  mag_.x = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
-  mag_.y = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
-  mag_.z = (float) ((int) (Wire.read()) | ((int) Wire.read()) >> 8);
+  mag.x = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * MAG_SNSTV;
+  mag.y = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * MAG_SNSTV;
+  mag.z = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * MAG_SNSTV;
   Wire.endTransmission(true);
 }
 
 void Imu::setNeutral(unsigned short iterations, unsigned short dly)
 {
-  neutralAccl_ = Vec3(0,0,0);
-  neutralGyro_ = Vec3(0,0,0);
-  neutralMag_ = Vec3(0,0,0);
+  neutralAccl_ = Vec3<double>(0,0,0);
+  neutralGyro_ = Vec3<double>(0,0,0);
+  neutralMag_ = Vec3<double>(0,0,0);
 
   for (int i = 0; i < iterations; ++i)
   {
     getData();
-    neutralAccl_ += accl_;
-    neutralGyro_ += gyro_;
-    neutralMag_ += mag_;
+    neutralAccl_ += accl;
+    neutralGyro_ += gyro;
+    neutralMag_ += mag;
+    delay(dly);
   }
 
   neutralAccl_ /= iterations;

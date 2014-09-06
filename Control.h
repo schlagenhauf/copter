@@ -13,9 +13,9 @@
 #define RCV_CHAN4 9
 
 #define CHAN_ROLL 3
-#define CHAN_PITCH 2
+#define CHAN_PITCH 1
 #define CHAN_YAW 0
-#define CHAN_SPEED 1
+#define CHAN_SPEED 2
 
 #define ROLL_MIN (int16_t)1050
 #define ROLL_MAX (int16_t)2050

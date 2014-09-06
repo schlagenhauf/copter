@@ -2,7 +2,9 @@
  * A PID controller functor
  */
 
+#ifdef _GTEST_ON
 #include <gtest/gtest.h>
+#endif
 
 #include "Vec3.h"
 #include "Quaternion.h"
@@ -12,9 +14,13 @@ using namespace Geometry;
 class Pid
 {
  public:
+#ifdef _GTEST_ON
   FRIEND_TEST(pid_tests, pid_ctor);
+#endif
   Pid(float coeffP, float coeffI, float coeffD) : coeffP_(coeffP), coeffI_(coeffI), coeffD_(coeffD) {}
+#ifdef _GTEST_ON
   FRIEND_TEST(pid_tests, pid_functor);
+#endif
   Vec3<float> operator()(const Quaternion& actual, const Quaternion& target);
 
  private:
