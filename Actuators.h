@@ -4,14 +4,21 @@
 #include "Quaternion.h"
 #include "Vec3.h"
 #include "Pid.h"
+#include "QPid.h"
 
 // Motor specs
 #define NUM_ACTUATORS 4
 #define MIN_SIGNAL 1100
-#define MAX_SIGNAL 1250
+#define MAX_SIGNAL 1750
 //#define MAX_SIGNAL 1953
 #define SIGNAL_RANGE (MAX_SIGNAL - MIN_SIGNAL)
 #define MAP_SIGNAL(x) (MIN_SIGNAL + x * SIGNAL_RANGE)
+
+// motor pins
+#define MOTOR_FRONT_PIN 20
+#define MOTOR_LEFT_PIN 21
+#define MOTOR_BACK_PIN 22
+#define MOTOR_RIGHT_PIN 23
 
 // Motor mappings
 #define MOTOR_FRONT 0
@@ -28,19 +35,18 @@ class Actuators
 {
  private:
   // Actual properties
-  uint8_t pins_[NUM_ACTUATORS];
   Servo actuators_[NUM_ACTUATORS];
-  float intRollError_, intPitchError_, intYawError_;
-  float dRollError_, dPitchError_, dYawError_;
 
-  Pid pid_;
+  Pid rollPid_;
+  Pid pitchPid_;
+  Pid yawPid_;
 
 
  public:
 
   float powers_[NUM_ACTUATORS];
 
-  Actuators (float p, float i, float d) : pid_(p,i,d) {};
+  Actuators () : rollPid_(0,0,0), pitchPid_(0,0,0), yawPid_(0,0,0) {};
 
   // Singleton instance
   static Actuators* _inst;
@@ -48,7 +54,7 @@ class Actuators
   static Actuators* getInst();
 
   // Creates the given amount of actuators and starts the calibration
-  void init(const uint8_t* pins);
+  void init();
 
   // Applies the values in <_power> to the actuators
   void applyMotorValues();
@@ -82,26 +88,39 @@ Actuators* Actuators::_inst = NULL;
 Actuators* Actuators::getInst()
 {
   if (!_inst)
-    _inst = new Actuators(0.5, 0.0, 1.0);
+    _inst = new Actuators();
 
   return _inst;
 }
 
-void Actuators::init(const uint8_t* pins)
+void Actuators::init()
 {
-  // copy pins
-  memcpy(pins_, pins, NUM_ACTUATORS * sizeof(uint8_t));
+  // init PIDs
+  rollPid_ = Pid(0.5, 0.000, 3.5);
+  pitchPid_ = Pid(0.5, 0.000, 3.5);
+  yawPid_ = Pid(0.5, 0.000, 3.5);
+
+  /*
+  rollPid_ = Pid(0.5, 0.005, 4.2);
+  pitchPid_ = Pid(0.5, 0.005, 4.2);
+  yawPid_ = Pid(0.5, 0.005, 4.2);
+  */
 
   // attach actuators to pins
-  for (uint8_t i = 0; i < NUM_ACTUATORS; ++i)
-    actuators_[i].attach(pins_[i]);
+  actuators_[MOTOR_FRONT].attach(MOTOR_FRONT_PIN);
+  actuators_[MOTOR_LEFT].attach(MOTOR_LEFT_PIN);
+  actuators_[MOTOR_BACK].attach(MOTOR_BACK_PIN);
+  actuators_[MOTOR_RIGHT].attach(MOTOR_RIGHT_PIN);
 
   digitalWrite(13, HIGH);
 
   // calibrate motors
-  for (uint8_t i = 0; i < NUM_ACTUATORS; ++i)
-    actuators_[i].writeMicroseconds(MAX_SIGNAL);
+  actuators_[MOTOR_FRONT].writeMicroseconds(MAX_SIGNAL);
+  actuators_[MOTOR_LEFT].writeMicroseconds(MAX_SIGNAL);
+  actuators_[MOTOR_BACK].writeMicroseconds(MAX_SIGNAL);
+  actuators_[MOTOR_RIGHT].writeMicroseconds(MAX_SIGNAL);
 
+  /*
   bool on = true;
   for (int i = 0; i < 5; ++i)
   {
@@ -109,26 +128,33 @@ void Actuators::init(const uint8_t* pins)
     on = !on;
     delay(700);
   }
+  */
+  delay(3500);
 
-  for (uint8_t i = 0; i < NUM_ACTUATORS; ++i)
-    actuators_[i].writeMicroseconds(MIN_SIGNAL);
+  actuators_[MOTOR_FRONT].writeMicroseconds(MIN_SIGNAL);
+  actuators_[MOTOR_LEFT].writeMicroseconds(MIN_SIGNAL);
+  actuators_[MOTOR_BACK].writeMicroseconds(MIN_SIGNAL);
+  actuators_[MOTOR_RIGHT].writeMicroseconds(MIN_SIGNAL);
 
+  /*
   for (int i = 0; i < 20; ++i)
   {
     digitalWrite(13, on);
     on = !on;
     delay(100);
   }
+  */
+  delay(7000);
 
-  intRollError_ = 0;
-  intPitchError_ = 0;
-  intYawError_ = 0;
+  digitalWrite(13, LOW);
 }
 
 void Actuators::applyMotorValues()
 {
-  for (uint8_t i = 0; i < NUM_ACTUATORS; ++i)
-    actuators_[i].writeMicroseconds(MAP_SIGNAL(powers_[i]));
+  actuators_[MOTOR_FRONT].writeMicroseconds(MAP_SIGNAL(constrain(powers_[MOTOR_FRONT],0,1)));
+  actuators_[MOTOR_LEFT].writeMicroseconds(MAP_SIGNAL(constrain(powers_[MOTOR_LEFT],0,1)));
+  actuators_[MOTOR_BACK].writeMicroseconds(MAP_SIGNAL(constrain(powers_[MOTOR_BACK],0,1)));
+  actuators_[MOTOR_RIGHT].writeMicroseconds(MAP_SIGNAL(constrain(powers_[MOTOR_RIGHT],0,1)));
 }
 
 void Actuators::zeroMotorValues()
@@ -139,13 +165,27 @@ void Actuators::zeroMotorValues()
 
 void Actuators::generateMotorValues(Quaternion& actual, Quaternion& target, float scale)
 {
-  Vec3<float> action = pid_(actual, target);
+  //Vec3<float> action = pid_(actual, target);
+  Quaternion deltaRot = actual * target.inverse();
+  double dRoll = deltaRot.getRoll();
+  double dPitch = deltaRot.getPitch();
+  double dYaw = deltaRot.getYaw();
+
+  double rollAction = rollPid_(dRoll, 0);
+  double pitchAction = pitchPid_(dPitch, 0);
+  double yawAction = yawPid_(dYaw, 0);
 
   zeroMotorValues();
-  setLeft(action.x * scale);
-  setForward(action.y * scale);
-  setTurn(action.z * scale);
-  //applyMotorValues();
+  if (scale > 0.1)
+  {
+    setLeft(pitchAction * 0.6f); // somehow switched
+    setForward(rollAction * 0.6f); // somehow switched
+    setTurn(yawAction * 0.6f); // somehow switched
+  }
+
+  setAscend(scale * 0.5);
+
+  applyMotorValues();
 }
 
 void Actuators::setAscend(float speed)

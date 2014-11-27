@@ -83,9 +83,17 @@ inline void Imu::getData()
   // read out accelerometer
   setRegister(ADDR_ACCL, ACCL_DATAXYZ, 0, false);
   Wire.requestFrom(ADDR_ACCL, 6);
+  // averaging over the last value to reduce noise
+  /*
+  accl.x = 0.5 * accl.x + 0.5 * ((double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV);
+  accl.y = 0.5 * accl.x + 0.5 * ((double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV);
+  accl.z = 0.5 * accl.z + 0.5 * ((double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV);
+  */
+
   accl.x = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
   accl.y = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
   accl.z = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
+
   Wire.endTransmission(true);
 
   // read out gyrometer

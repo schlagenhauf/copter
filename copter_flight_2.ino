@@ -35,15 +35,13 @@ void setup()
 
   imu.init();
   imu.setNeutral(10, 10);
-
-
-  uint8_t pins[]{20,21,22,23};
-  ActuatorsST.init(pins);
-
+  ActuatorsST.init();
   ControlST.init();
 
   lastTime = millis();
 }
+
+volatile int counter = 0;
 
 void loop()
 {
@@ -53,19 +51,21 @@ void loop()
 
   imu.getData();
   Vec3<double> corrGyro = (imu.gyro - imu.neutralGyro_) * (PI / 180 * 0.125 * dTime);
-  Quaternion gyro(-corrGyro.x, corrGyro.y, corrGyro.z);
+  Quaternion gyro(corrGyro.x, corrGyro.y, corrGyro.z);
   gyro.normalize();
 
   Quaternion accl(imu.accl, imu.neutralAccl_, copterRot.getYaw());
   accl.normalize();
 
-  copterRot = (copterRot * gyro).slerp(accl, 0.05);
+  copterRot = (copterRot * gyro).slerp(accl, 0.004);
   copterRot.normalize();
 
   // control motors
-  Quaternion target (0, (ControlST.getPitch() - 0.5) * PI, 0);
+  Quaternion target (-(ControlST.getPitch() - 0.5) * PI / 4.0, (ControlST.getRoll() - 0.5) * PI / 4.0, (ControlST.getYaw() - 0.5) * PI / 4.0);
   ActuatorsST.generateMotorValues(copterRot, target, ControlST.getSpeed());
+  ActuatorsST.applyMotorValues();
 
+  /*
   Serial.print(ActuatorsST.powers_[0]);
   Serial.print(" ");
   Serial.print(ActuatorsST.powers_[1]);
@@ -74,18 +74,18 @@ void loop()
   Serial.print(" ");
   Serial.print(ActuatorsST.powers_[3]);
   Serial.print("\n");
-
-  // write to serial out
-  /*
-  char byteArray[16];
-  copterRot.toByteArray(byteArray);
-
-  Serial.write(0x02); // STX (start of text)
-  Serial.write(byteArray, 16); // sensor data
   */
 
-  digitalWrite(13, HIGH);
-  delay(20);
-  digitalWrite(13, LOW);
-  delay(20);
+  if (counter > 10)
+  {
+    char byteArray[16];
+    copterRot.toByteArray(byteArray);
+    Serial.write(0x02); // STX (start of text)
+    Serial.write(byteArray, 16); // sensor data
+    counter = 0;
+  }
+  else
+    counter++;
+
+  //delay(10);
 }
