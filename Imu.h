@@ -2,9 +2,9 @@
 #define _IMU_H
 
 // I2C Addresses
-#define ADDR_GYRO B1101000
-#define ADDR_ACCL B1010011
-#define ADDR_MAG B0011110
+#define ADDR_GYRO B1101000 // 0x68
+#define ADDR_ACCL B1010011 // 0x53
+#define ADDR_MAG B0011110 // 0x1D
 
 // Register Addresses
 #define ACCL_POWER_CTL 0x2D
@@ -21,7 +21,10 @@
 #define MAG_SNSTV (1.0 / 1090.0)
 
 #include "Vec3.h"
+#include "Quaternion.h"
+#include "Conversion.h"
 
+using namespace Geometry;
 
 class Imu
 {
@@ -83,17 +86,9 @@ inline void Imu::getData()
   // read out accelerometer
   setRegister(ADDR_ACCL, ACCL_DATAXYZ, 0, false);
   Wire.requestFrom(ADDR_ACCL, 6);
-  // averaging over the last value to reduce noise
-  /*
-  accl.x = 0.5 * accl.x + 0.5 * ((double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV);
-  accl.y = 0.5 * accl.x + 0.5 * ((double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV);
-  accl.z = 0.5 * accl.z + 0.5 * ((double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV);
-  */
-
   accl.x = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
   accl.y = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
   accl.z = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
-
   Wire.endTransmission(true);
 
   // read out gyrometer
