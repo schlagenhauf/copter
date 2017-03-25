@@ -85,12 +85,17 @@ void loop()
   stateMsg.orientation.w = copterRot.w;
 
   if(pb_encode(&outstream, PbCopterState_fields, &stateMsg)) {
+    Serial.write(0xa3);
+    Serial.write(0xa3);
+    Serial.write(0xa3);
     Serial.write(buffer, outstream.bytes_written); // sensor data
   }
 
 
+  /*
   digitalWrite(13, HIGH);
   delay(10);
   digitalWrite(13, LOW);
   delay(90);
+  */
 }
