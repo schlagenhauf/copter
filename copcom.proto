@@ -20,10 +20,13 @@ message PbCopterState {
     optional PbVec3 gyro = 2;
     optional PbVec3 mag = 3;
 
-    optional PbVec4 orientation = 4;
+    optional PbVec4 controls = 4;
 
-    optional PbVec4 motorSpeed = 5;
+    optional PbVec4 orientation = 5;
+
+    optional PbVec4 motorSpeed = 6;
 }
 
 message PbCopterCommand {
+    optional PbVec3 pidParams = 1;
 }

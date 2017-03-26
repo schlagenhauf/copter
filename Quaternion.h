@@ -418,6 +418,7 @@ namespace Geometry
     return atan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z);
   }
 
+  /*
   float Quaternion::fastSqrt(float number)
   {
     long i;
@@ -434,5 +435,6 @@ namespace Geometry
 
     return y;
   }
+  */
 }
 #endif  // GEOMETRICS_QUATERNION_H_

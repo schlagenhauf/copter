@@ -7,12 +7,12 @@
 #include <Wire.h>
 #include <string.h>
 
-//#include "Actuators.h"
+#include "Actuators.h"
 //#include "Conversion.h"
 #include "Imu.h"
-//#include "Control.h"
-//#include "Quaternion.h"
-//#include "Vec3.h"
+#include "Control.h"
+#include "Quaternion.h"
+#include "Vec3.h"
 #include "pb_encode.h"
 #include "copcom.pb.h"
 
@@ -24,6 +24,8 @@ unsigned long lastTime;
 
 Imu imu;
 
+PbCopterState stateMsg;
+
 void setup()
 {
   Wire.begin();
@@ -31,17 +33,19 @@ void setup()
 
   imu.init();
   imu.setNeutral(10, 10);
-  //ActuatorsST.init();
-  //ControlST.init();
+  ActuatorsST.init();
+  ControlST.init();
 
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
 
-
   lastTime = millis();
+
+  // pre-set protobuf field markers
+  stateMsg.has_orientation = true;
+  stateMsg.has_motorSpeed = true;
 }
 
-volatile int counter = 0;
 
 void loop()
 {
@@ -60,30 +64,23 @@ void loop()
   copterRot = (copterRot * gyro).slerp(accl, 0.004);
   copterRot.normalize();
 
-  /*
   // control motors
   Quaternion target (-(ControlST.getPitch() - 0.5) * PI / 4.0, (ControlST.getRoll() - 0.5) * PI / 4.0, (ControlST.getYaw() - 0.5) * PI / 4.0);
   ActuatorsST.generateMotorValues(copterRot, target, ControlST.getSpeed());
   ActuatorsST.applyMotorValues();
-  */
 
-  /*
-  char byteArray[16];
-  copterRot.toByteArray(byteArray);
-  Serial.write(0x02); // STX (start of text)
-  Serial.write(byteArray, 16); // sensor data
-  counter = 0;
-  */
-
-  uint8_t buffer[128];
-  pb_ostream_t outstream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-  PbCopterState stateMsg;
   stateMsg.orientation.x = copterRot.x;
   stateMsg.orientation.y = copterRot.y;
   stateMsg.orientation.z = copterRot.z;
   stateMsg.orientation.w = copterRot.w;
+  stateMsg.motorSpeed.w = ActuatorsST.powers_[0];
+  stateMsg.motorSpeed.x = ActuatorsST.powers_[1];
+  stateMsg.motorSpeed.y = ActuatorsST.powers_[2];
+  stateMsg.motorSpeed.z = ActuatorsST.powers_[3];
 
+
+  uint8_t buffer[128];
+  pb_ostream_t outstream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   if(pb_encode(&outstream, PbCopterState_fields, &stateMsg)) {
     Serial.write(0xa3);
     Serial.write(0xa3);
@@ -92,10 +89,8 @@ void loop()
   }
 
 
-  /*
   digitalWrite(13, HIGH);
-  delay(10);
+  delay(1);
   digitalWrite(13, LOW);
-  delay(90);
-  */
+  delay(9);
 }
