@@ -20,6 +20,9 @@
 #define ACCL_SNSTV (1.0 / 256.0)
 #define MAG_SNSTV (1.0 / 1090.0)
 
+// Buffer Sizes
+#define ACCL_BUF_SIZE 10
+
 #include "Vec3.h"
 #include "Quaternion.h"
 #include "Conversion.h"
@@ -35,14 +38,18 @@ class Imu
   void init();
   void getData();
   void setNeutral(unsigned short iterations = 10, unsigned short dly = 20);
+  void computeMeanAccl();
 
-  Vec3<double> accl;
+  Vec3<double> accl[ACCL_BUF_SIZE];
+  Vec3<double> meanAccl;
   Vec3<double> gyro;
   Vec3<double> mag;
 
   Vec3<double> neutralAccl_;
   Vec3<double> neutralGyro_;
   Vec3<double> neutralMag_;
+
+  uint8_t acclBufCursor;
 };
 
 inline void Imu::setRegister(uint8_t devAddr, uint8_t regAddr, uint8_t value, uint8_t stop)
@@ -58,6 +65,8 @@ inline void Imu::setRegister(uint8_t devAddr, uint8_t regAddr, uint8_t value, ui
 
 inline void Imu::init()
 {
+  acclBufCursor = 0;
+
   // accelerometer config
   setRegister(ADDR_ACCL, ACCL_POWER_CTL, BIT3); // enable measurement
   setRegister(ADDR_ACCL, ACCL_DATA_FORMAT, BIT3); // dynamic resolution
@@ -86,10 +95,13 @@ inline void Imu::getData()
   // read out accelerometer
   setRegister(ADDR_ACCL, ACCL_DATAXYZ, 0, false);
   Wire.requestFrom(ADDR_ACCL, 6);
-  accl.x = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
-  accl.y = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
-  accl.z = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
+  accl[acclBufCursor].x = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
+  accl[acclBufCursor].y = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
+  accl[acclBufCursor].z = (double) ((short) (Wire.read() + Wire.read() * TWOPOWEIGHT)) * ACCL_SNSTV;
   Wire.endTransmission(true);
+  acclBufCursor++;
+  if (acclBufCursor >= ACCL_BUF_SIZE)
+    acclBufCursor = 0;
 
   // read out gyrometer
   setRegister(ADDR_GYRO, GYRO_DATAXYZ, 0, false);
@@ -117,7 +129,7 @@ void Imu::setNeutral(unsigned short iterations, unsigned short dly)
   for (int i = 0; i < iterations; ++i)
   {
     getData();
-    neutralAccl_ += accl;
+    neutralAccl_ += accl[acclBufCursor];
     neutralGyro_ += gyro;
     neutralMag_ += mag;
     delay(dly);
@@ -126,6 +138,14 @@ void Imu::setNeutral(unsigned short iterations, unsigned short dly)
   neutralAccl_ /= iterations;
   neutralGyro_ /= iterations;
   neutralMag_ /= iterations;
+}
+
+void Imu::computeMeanAccl() {
+  meanAccl = Vec3<double>(0,0,0);
+  for (int i = 0; i < ACCL_BUF_SIZE; ++i) {
+    meanAccl += accl[i];
+  }
+  meanAccl /= ACCL_BUF_SIZE;
 }
 
 #endif  // _IMU_H

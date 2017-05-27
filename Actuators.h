@@ -9,7 +9,8 @@
 // Motor specs
 #define NUM_ACTUATORS 4
 #define MIN_SIGNAL 1100
-#define MAX_SIGNAL 1750
+#define MAX_SIGNAL 1400
+//#define MAX_SIGNAL 1750
 //#define MAX_SIGNAL 1953
 #define SIGNAL_RANGE (MAX_SIGNAL - MIN_SIGNAL)
 #define MAP_SIGNAL(x) (MIN_SIGNAL + x * SIGNAL_RANGE)
@@ -46,7 +47,7 @@ class Actuators
 
   float powers_[NUM_ACTUATORS];
 
-  Actuators () : rollPid_(0,0,0), pitchPid_(0,0,0), yawPid_(0,0,0) {};
+  Actuators () : rollPid_(1,0,0), pitchPid_(1,0,0), yawPid_(1,0,0) {};
 
   // Singleton instance
   static Actuators* _inst;
@@ -176,12 +177,14 @@ void Actuators::generateMotorValues(Quaternion& actual, Quaternion& target, floa
   double yawAction = yawPid_(dYaw, 0);
 
   zeroMotorValues();
+  /*
   if (scale > 0.1)
   {
     setLeft(pitchAction * 0.6f); // somehow switched
     setForward(rollAction * 0.6f); // somehow switched
     setTurn(yawAction * 0.6f); // somehow switched
   }
+  */
 
   setAscend(scale * 0.5);
 

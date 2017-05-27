@@ -34,16 +34,17 @@ void setup()
 
   imu.init();
   imu.setNeutral(10, 10);
-  //ActuatorsST.init(); // crashes!
+  ActuatorsST.init(); // takes some time (10s)
   ControlST.init();
 
   lastTime = millis();
 
   // pre-set protobuf field markers
   stateMsg.has_orientation = true;
-  stateMsg.has_controls = true;
+  //stateMsg.has_controls = true;
   stateMsg.has_refOrientation = true;
   stateMsg.has_motorSpeed = true;
+  stateMsg.has_accl = true;
 }
 
 
@@ -57,7 +58,8 @@ void loop()
   Quaternion gyro(corrGyro.x, corrGyro.y, corrGyro.z);
   gyro.normalize();
 
-  Quaternion accl(imu.accl, imu.neutralAccl_, copterRot.getYaw());
+  imu.computeMeanAccl();
+  Quaternion accl(imu.meanAccl, imu.neutralAccl_, copterRot.getYaw());
   accl.normalize();
 
   copterRot = (copterRot * gyro).slerp(accl, 0.004);
@@ -68,8 +70,10 @@ void loop()
   ActuatorsST.generateMotorValues(copterRot, ref, ControlST.getSpeed());
   ActuatorsST.applyMotorValues();
 
-
   // Fill state message
+  stateMsg.accl.x = imu.meanAccl.x;
+  stateMsg.accl.y = imu.meanAccl.y;
+  stateMsg.accl.z = imu.meanAccl.z;
   stateMsg.orientation.x = copterRot.x;
   stateMsg.orientation.y = copterRot.y;
   stateMsg.orientation.z = copterRot.z;
@@ -78,16 +82,18 @@ void loop()
   stateMsg.refOrientation.y = ref.y;
   stateMsg.refOrientation.z = ref.z;
   stateMsg.refOrientation.w = ref.w;
+  /*
   stateMsg.controls.x = ControlST.getRoll();
   stateMsg.controls.y = ControlST.getPitch();
   stateMsg.controls.z = ControlST.getYaw();
   stateMsg.controls.w = ControlST.getSpeed();
+  */
   stateMsg.motorSpeed.w = ActuatorsST.powers_[0];
   stateMsg.motorSpeed.x = ActuatorsST.powers_[1];
   stateMsg.motorSpeed.y = ActuatorsST.powers_[2];
   stateMsg.motorSpeed.z = ActuatorsST.powers_[3];
 
-  uint8_t buffer[256];
+  uint8_t buffer[512];
   pb_ostream_t outstream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   if(pb_encode(&outstream, PbCopterState_fields, &stateMsg)) {
     Serial.write(0xa3);
@@ -95,7 +101,6 @@ void loop()
     Serial.write(0xa3);
     Serial.write(buffer, outstream.bytes_written); // sensor data
   }
-
 
   digitalWrite(13, HIGH);
   delay(10);

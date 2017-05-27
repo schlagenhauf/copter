@@ -133,4 +133,4 @@ float Control::getSpeed()
   return max(min((float) (chanVal[CHAN_SPEED] - SPEED_MIN) / SPEED_RANGE, 1.0f), 0.0f);
 }
 
-#endif  // _SENSORS_H
+#endif  // _CONTROL_H
