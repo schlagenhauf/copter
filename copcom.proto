@@ -22,9 +22,11 @@ message PbCopterState {
 
     optional PbVec4 controls = 4;
 
-    optional PbVec4 orientation = 5;
+    optional PbVec4 refOrientation = 5;
 
-    optional PbVec4 motorSpeed = 6;
+    optional PbVec4 orientation = 6;
+
+    optional PbVec4 motorSpeed = 7;
 }
 
 message PbCopterCommand {

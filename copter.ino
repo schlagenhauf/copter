@@ -18,38 +18,37 @@
 
 using namespace Geometry;
 
-Quaternion copterRot;
-
 unsigned long lastTime;
 
+Quaternion copterRot;
 Imu imu;
-
 PbCopterState stateMsg;
 
 void setup()
 {
+  pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH);
+
   Wire.begin();
   Serial.begin(9600);
 
   imu.init();
   imu.setNeutral(10, 10);
-  ActuatorsST.init();
+  //ActuatorsST.init(); // crashes!
   ControlST.init();
-
-  pinMode(13, OUTPUT);
-  digitalWrite(13, HIGH);
 
   lastTime = millis();
 
   // pre-set protobuf field markers
   stateMsg.has_orientation = true;
+  stateMsg.has_controls = true;
+  stateMsg.has_refOrientation = true;
   stateMsg.has_motorSpeed = true;
 }
 
 
 void loop()
 {
-  // convert IMU readout to quaternion rotation
   double dTime = (double)(millis() - lastTime) / 1000.0;
   lastTime = millis();
 
@@ -65,21 +64,30 @@ void loop()
   copterRot.normalize();
 
   // control motors
-  Quaternion target (-(ControlST.getPitch() - 0.5) * PI / 4.0, (ControlST.getRoll() - 0.5) * PI / 4.0, (ControlST.getYaw() - 0.5) * PI / 4.0);
-  ActuatorsST.generateMotorValues(copterRot, target, ControlST.getSpeed());
+  Quaternion ref (-(ControlST.getPitch() - 0.5) * PI / 4.0, (ControlST.getRoll() - 0.5) * PI / 4.0, (ControlST.getYaw() - 0.5) * PI / 4.0);
+  ActuatorsST.generateMotorValues(copterRot, ref, ControlST.getSpeed());
   ActuatorsST.applyMotorValues();
 
+
+  // Fill state message
   stateMsg.orientation.x = copterRot.x;
   stateMsg.orientation.y = copterRot.y;
   stateMsg.orientation.z = copterRot.z;
   stateMsg.orientation.w = copterRot.w;
+  stateMsg.refOrientation.x = ref.x;
+  stateMsg.refOrientation.y = ref.y;
+  stateMsg.refOrientation.z = ref.z;
+  stateMsg.refOrientation.w = ref.w;
+  stateMsg.controls.x = ControlST.getRoll();
+  stateMsg.controls.y = ControlST.getPitch();
+  stateMsg.controls.z = ControlST.getYaw();
+  stateMsg.controls.w = ControlST.getSpeed();
   stateMsg.motorSpeed.w = ActuatorsST.powers_[0];
   stateMsg.motorSpeed.x = ActuatorsST.powers_[1];
   stateMsg.motorSpeed.y = ActuatorsST.powers_[2];
   stateMsg.motorSpeed.z = ActuatorsST.powers_[3];
 
-
-  uint8_t buffer[128];
+  uint8_t buffer[256];
   pb_ostream_t outstream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   if(pb_encode(&outstream, PbCopterState_fields, &stateMsg)) {
     Serial.write(0xa3);
@@ -90,7 +98,7 @@ void loop()
 
 
   digitalWrite(13, HIGH);
-  delay(1);
+  delay(10);
   digitalWrite(13, LOW);
-  delay(9);
+  delay(90);
 }
