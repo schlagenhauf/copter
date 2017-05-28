@@ -19,7 +19,8 @@ class Pid
 #endif
   Pid(double coeffP, double coeffI, double coeffD) : coeffP_(coeffP), coeffI_(coeffI), coeffD_(coeffD)
   {
-    normalizationSum_ = fabs(coeffP + coeffI + coeffD);
+    integError = 0;
+    lastError = 0;
   }
 #ifdef _GTEST_ON
   FRIEND_TEST(pid_tests, pid_functor);
@@ -30,9 +31,6 @@ class Pid
   double coeffP_, coeffI_, coeffD_;
 
   double integError, lastError;
-
-  double normalizationSum_;
-
 };
 
 double Pid::operator()(const double& actual, const double& target)
@@ -40,10 +38,10 @@ double Pid::operator()(const double& actual, const double& target)
   double error = target - actual;
   double dError = error - lastError;
   integError += error;
-  if (integError > 0.05) integError = 0.05;
+  if (integError > 0.05)
+    integError = 0.05;
 
   lastError = error;
 
-  //return ((error * coeffP_) + (integError * coeffI_) + (dError * coeffD_));
-  return ((error * coeffP_) + (integError * coeffI_) + (dError * coeffD_)) / normalizationSum_;
+  return ((error * coeffP_) + (integError * coeffI_) + (dError * coeffD_));
 }

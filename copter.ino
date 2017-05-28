@@ -41,7 +41,7 @@ void setup()
 
   // pre-set protobuf field markers
   stateMsg.has_orientation = true;
-  //stateMsg.has_controls = true;
+  stateMsg.has_controls = true;
   stateMsg.has_refOrientation = true;
   stateMsg.has_motorSpeed = true;
   stateMsg.has_accl = true;
@@ -54,18 +54,22 @@ void loop()
   lastTime = millis();
 
   imu.getData();
+
+  // set up quaternion from gyro data
   Vec3<double> corrGyro = (imu.gyro - imu.neutralGyro_) * (PI / 180 * 0.125 * dTime);
   Quaternion gyro(corrGyro.x, corrGyro.y, corrGyro.z);
   gyro.normalize();
 
+  // set up quaternion from smoothed accelerometer data
   imu.computeMeanAccl();
   Quaternion accl(imu.meanAccl, imu.neutralAccl_, copterRot.getYaw());
   accl.normalize();
 
+  // interpolate between accl and gyro with a complementary filter
   copterRot = (copterRot * gyro).slerp(accl, 0.004);
   copterRot.normalize();
 
-  // control motors
+  // set up reference orientation based on roll / pitch / yaw
   Quaternion ref (-(ControlST.getPitch() - 0.5) * PI / 4.0, (ControlST.getRoll() - 0.5) * PI / 4.0, (ControlST.getYaw() - 0.5) * PI / 4.0);
   ActuatorsST.generateMotorValues(copterRot, ref, ControlST.getSpeed());
   ActuatorsST.applyMotorValues();
@@ -82,12 +86,10 @@ void loop()
   stateMsg.refOrientation.y = ref.y;
   stateMsg.refOrientation.z = ref.z;
   stateMsg.refOrientation.w = ref.w;
-  /*
   stateMsg.controls.x = ControlST.getRoll();
   stateMsg.controls.y = ControlST.getPitch();
   stateMsg.controls.z = ControlST.getYaw();
   stateMsg.controls.w = ControlST.getSpeed();
-  */
   stateMsg.motorSpeed.w = ActuatorsST.powers_[0];
   stateMsg.motorSpeed.x = ActuatorsST.powers_[1];
   stateMsg.motorSpeed.y = ActuatorsST.powers_[2];

@@ -47,7 +47,7 @@ class Actuators
 
   float powers_[NUM_ACTUATORS];
 
-  Actuators () : rollPid_(1,0,0), pitchPid_(1,0,0), yawPid_(1,0,0) {};
+  Actuators () : rollPid_(0,0,0), pitchPid_(0,0,0), yawPid_(0,0,0) {};
 
   // Singleton instance
   static Actuators* _inst;
@@ -100,12 +100,6 @@ void Actuators::init()
   rollPid_ = Pid(0.5, 0.000, 3.5);
   pitchPid_ = Pid(0.5, 0.000, 3.5);
   yawPid_ = Pid(0.5, 0.000, 3.5);
-
-  /*
-  rollPid_ = Pid(0.5, 0.005, 4.2);
-  pitchPid_ = Pid(0.5, 0.005, 4.2);
-  yawPid_ = Pid(0.5, 0.005, 4.2);
-  */
 
   // attach actuators to pins
   actuators_[MOTOR_FRONT].attach(MOTOR_FRONT_PIN);
@@ -166,7 +160,6 @@ void Actuators::zeroMotorValues()
 
 void Actuators::generateMotorValues(Quaternion& actual, Quaternion& target, float scale)
 {
-  //Vec3<float> action = pid_(actual, target);
   Quaternion deltaRot = actual * target.inverse();
   double dRoll = deltaRot.getRoll();
   double dPitch = deltaRot.getPitch();
@@ -177,16 +170,14 @@ void Actuators::generateMotorValues(Quaternion& actual, Quaternion& target, floa
   double yawAction = yawPid_(dYaw, 0);
 
   zeroMotorValues();
-  /*
   if (scale > 0.1)
   {
-    setLeft(pitchAction * 0.6f); // somehow switched
-    setForward(rollAction * 0.6f); // somehow switched
-    setTurn(yawAction * 0.6f); // somehow switched
+    setLeft(pitchAction); // somehow switched
+    setForward(rollAction); // somehow switched
+    setTurn(yawAction); // somehow switched
   }
-  */
 
-  setAscend(scale * 0.5);
+  setAscend(scale);
 
   applyMotorValues();
 }
