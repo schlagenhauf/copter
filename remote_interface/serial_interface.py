@@ -18,22 +18,25 @@ class SerialInterface(object):
         self.connected = False
         self.data = ""
         self.header = chr(0xa3) * 3
+        self.ser = None
 
     def __del__(self):
-        self.ser.close()
+        if self.ser and self.connected:
+            self.ser.close()
 
-    def connect(self):
+    def connect(self, tryRepeatedly = True):
         # establish connection
         while True:
             try:
                 self.ser = serial.Serial(self.comport, self.baud, self.bytesize)
                 self.connected = True
-                print "Connected to " + self.comport
-
-                break
+                return "Connected to " + self.comport
             except serial.SerialException:
-                print('Waiting for device ' + self.comport + ' to be available.')
-                time.sleep(3)
+                if not tryRepeatedly:
+                    return 'Waiting for device ' + self.comport + ' to be available.'
+                else:
+                    print('Waiting for device ' + self.comport + ' to be available.')
+                    time.sleep(3)
 
     def receive(self):
         sizePre = len(self.data)
