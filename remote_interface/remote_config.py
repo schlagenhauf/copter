@@ -3,7 +3,7 @@
 import sys, serial, time
 import itertools
 import copcom_pb2
-import google.protobuf
+from google.protobuf.message import EncodeError as PbEncodeException
 
 import numpy as np
 from PyQt4 import QtCore, QtGui, uic
@@ -81,9 +81,8 @@ class RemoteConfig(QtGui.QMainWindow):
         try:
             bts = self.pp.message2bytes(self.pp.accumMsg)
             self.s.transmit(bts)
-        #except protobuf.message.EncodeError as e:
-        except Exception as e:
-            print e
+        except PbEncodeException as pbex:
+            print "Error while encoding pb message: %s" % str(pbex)
 
 
     def saveValuesAsPbMsg(self):
@@ -91,6 +90,9 @@ class RemoteConfig(QtGui.QMainWindow):
         with open(self.msgPath, 'wb') as f:
             f.write(bts)
 
+    def quit(self):
+        self.s.disconnect()
+        self.saveValuesAsPbMsg()
 
 
 
@@ -99,4 +101,4 @@ if __name__ == "__main__":
     pbv = RemoteConfig(sys.argv)
     pbv.show()
     app.exec_()
-    pbv.saveValuesAsPbMsg()
+    pbv.quit()

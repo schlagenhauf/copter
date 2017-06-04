@@ -38,6 +38,12 @@ class SerialInterface(object):
                     print('Waiting for device ' + self.comport + ' to be available.')
                     time.sleep(3)
 
+    def disconnect(self):
+        if self.ser:
+            self.ser.close()
+            self.ser = None
+        self.connected = False
+
     def receive(self):
         sizePre = len(self.data)
         # if there is something at the serial port
@@ -79,7 +85,7 @@ class SerialInterface(object):
         if not self.connected:
             print "Couldn't send message. Not Connected."
         else:
-            self.ser.write(bytes(message, encoding='ascii'))
+            self.ser.write(bytes(message))
 
 
 
