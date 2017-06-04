@@ -84,7 +84,7 @@ class ProtobufVisualizer(QtGui.QMainWindow, form_class):
         self.s = SerialInterface('/dev/ttyACM0')
         self.s.connect()
 
-        self.pp = ProtobufParser()
+        self.pp = ProtobufParser(copcom_pb2.PbCopterState())
 
         self.glw = GraphicsLayoutWidget(self.plotView)
         self.fieldNames = self.pp.getFieldNames()

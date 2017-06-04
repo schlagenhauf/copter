@@ -75,29 +75,56 @@ class SerialInterface(object):
 
         return packet
 
-    def transmit(self, command):
-        self.ser.write(bytes(command, encoding='ascii'))
+    def transmit(self, message):
+        if not self.connected:
+            print "Couldn't send message. Not Connected."
+        else:
+            self.ser.write(bytes(message, encoding='ascii'))
 
-    def toString(self):
-        # return '\t'.join(['Accl: ' + str(self.accl), 'Gyro: ' + str(self.gyro), 'Mag: ' + str(self.mag)])
-        return 'Quaternion rotation: ' + str(self.quat.rotAngleInDeg())
 
 
 class ProtobufParser:
-    def __init__(self, message):
-        self.message = message
-        #self.message = copcom_pb2.PbCopterState()
+    def __init__(self, messageCls):
+        self.messageCls = messageCls
+        self.accumMsg = self.messageCls()
 
     # parse a list of bytes to fill the protobuf message
-    def __call__(self, data):
-        # print ''.join(format(ord(x), '02x') for x in data)
+    def bytes2message(self, data):
         data = ''.join(data)
-        self.message.ParseFromString(data)
-        return self.message
+        inst = self.messageCls() # create instance from message class
+        inst.ParseFromString(data)
+        return inst
+
+    def message2bytes(self, message):
+        return message.SerializeToString()
+
+    def setFieldByPath(self, path, value, msg = None):
+        if not msg:
+            msg = self.accumMsg
+        fields = path.split('.')
+        curField = msg
+        for f in fields[:-1]:
+            curField = getattr(curField, f)
+
+        setattr(curField, fields[-1], value)
+
+        return self.accumMsg
+
+    def getFieldByPath(self, path, msg = None):
+        if not msg:
+            msg = self.accumMsg
+        fields = path.split('.')
+        curField = msg
+        for f in fields[:-1]:
+            curField = getattr(curField, f)
+
+        return getattr(curField, fields[-1])
+
+
 
     def getFieldNames(self, msg = None):
         if msg is None:
-            msg = self.message
+            msg = self.messageCls()
         return [f.name if f.type != f.TYPE_MESSAGE else \
                 [f.name + '.' + sn for sn in self.getFieldNames(getattr(msg, f.name))] \
                 for f in msg.DESCRIPTOR.fields]

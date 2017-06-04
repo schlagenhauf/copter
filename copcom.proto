@@ -30,5 +30,7 @@ message PbCopterState {
 }
 
 message PbCopterCommand {
-    optional PbVec3 pidParams = 1;
+    optional PbVec3 rollPidParams = 1;
+    optional PbVec3 pitchPidParams = 2;
+    optional PbVec3 yawPidParams = 3;
 }
