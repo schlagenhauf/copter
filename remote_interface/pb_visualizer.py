@@ -84,7 +84,7 @@ class ProtobufVisualizer(QtGui.QMainWindow, form_class):
         self.s = SerialInterface('/dev/ttyACM0')
         self.s.connect()
 
-        self.pp = ProtobufParser(copcom_pb2.PbCopterState())
+        self.pp = ProtobufParser(copcom_pb2.PbCopterState)
 
         self.glw = GraphicsLayoutWidget(self.plotView)
         self.fieldNames = self.pp.getFieldNames()
@@ -109,7 +109,7 @@ class ProtobufVisualizer(QtGui.QMainWindow, form_class):
             if not pkgStr:
                 break
 
-            pbPkg = self.pp(pkgStr)
+            pbPkg = self.pp.bytes2message(pkgStr)
             o = pbPkg.orientation
             r = pbPkg.refOrientation
             c = pbPkg.controls
