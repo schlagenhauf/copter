@@ -1,6 +1,7 @@
 #ifndef _ACTUATORS_H
 #define _ACTUATORS_H
 
+#include "copcom.pb.h"
 #include "Quaternion.h"
 #include "Vec3.h"
 #include "Pid.h"
@@ -56,6 +57,12 @@ class Actuators
 
   // Creates the given amount of actuators and starts the calibration
   void init();
+
+  // Set all PID parameters
+  void setParams(double pRoll, double iRoll, double dRoll,
+    double pPitch, double iPitch, double dPitch, double pYaw, double iYaw,
+    double dYaw);
+  void setParams(PbCopterCommand* cmdMsg);
 
   // Applies the values in <_power> to the actuators
   void applyMotorValues();
@@ -115,15 +122,6 @@ void Actuators::init()
   actuators_[MOTOR_BACK].writeMicroseconds(MAX_SIGNAL);
   actuators_[MOTOR_RIGHT].writeMicroseconds(MAX_SIGNAL);
 
-  /*
-  bool on = true;
-  for (int i = 0; i < 5; ++i)
-  {
-    digitalWrite(13, on);
-    on = !on;
-    delay(700);
-  }
-  */
   delay(3500);
 
   actuators_[MOTOR_FRONT].writeMicroseconds(MIN_SIGNAL);
@@ -131,17 +129,23 @@ void Actuators::init()
   actuators_[MOTOR_BACK].writeMicroseconds(MIN_SIGNAL);
   actuators_[MOTOR_RIGHT].writeMicroseconds(MIN_SIGNAL);
 
-  /*
-  for (int i = 0; i < 20; ++i)
-  {
-    digitalWrite(13, on);
-    on = !on;
-    delay(100);
-  }
-  */
   delay(7000);
 
   digitalWrite(13, LOW);
+}
+
+void Actuators::setParams(double pRoll, double iRoll, double dRoll,
+    double pPitch, double iPitch, double dPitch, double pYaw, double iYaw,
+    double dYaw) {
+  rollPid_.setParams(pRoll, iRoll, dRoll);
+  pitchPid_.setParams(pPitch, iPitch, dPitch);
+  yawPid_.setParams(pYaw, iYaw, dYaw);
+}
+
+void Actuators::setParams(PbCopterCommand* cmdMsg) {
+  rollPid_.setParams(cmdMsg->rollPidParams.x, cmdMsg->rollPidParams.y, cmdMsg->rollPidParams.z);
+  pitchPid_.setParams(cmdMsg->pitchPidParams.x, cmdMsg->pitchPidParams.y, cmdMsg->pitchPidParams.z);
+  yawPid_.setParams(cmdMsg->yawPidParams.x, cmdMsg->yawPidParams.y, cmdMsg->yawPidParams.z);
 }
 
 void Actuators::applyMotorValues()

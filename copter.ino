@@ -3,6 +3,7 @@
  */
 
 #include <Arduino.h>
+#include <EEPROM.h>
 #include <Servo.h>
 #include <Wire.h>
 #include <string.h>
@@ -14,7 +15,10 @@
 #include "Quaternion.h"
 #include "Vec3.h"
 #include "pb_encode.h"
+#include "pb_decode.h"
 #include "copcom.pb.h"
+
+#define MAX_CMD_MSG_SIZE 512
 
 using namespace Geometry;
 
@@ -23,18 +27,62 @@ unsigned long lastTime;
 Quaternion copterRot;
 Imu imu;
 PbCopterState stateMsg;
+PbCopterCommand cmdMsg;
+bool firstCmdMsg = false;
+
+void writeCmdMsgToEEPROM() {
+  uint8_t buffer[MAX_CMD_MSG_SIZE];
+  pb_ostream_t outstream = pb_ostream_from_buffer(buffer, MAX_CMD_MSG_SIZE);
+
+  if(!pb_encode(&outstream, PbCopterCommand_fields, &cmdMsg))
+    return;
+
+  // write size of pb message into first 4 bytes
+  EEPROM.write(0, (outstream.bytes_written >> 24) & 0xFF);
+  EEPROM.write(1, (outstream.bytes_written >> 16) & 0xFF);
+  EEPROM.write(2, (outstream.bytes_written >> 8) & 0xFF);
+  EEPROM.write(3, outstream.bytes_written & 0xFF);
+
+  // write pb message after length header
+  for (size_t i = 0; i < outstream.bytes_written; ++i) {
+    EEPROM.write(4 + i, buffer[i]); // sensor data
+  }
+}
+
+void readCmdMsgFromEEPROM() {
+  // read size of saved message from the first 4 bytes
+  size_t numBytes =
+      (EEPROM.read(0) << 24) & (EEPROM.read(1) << 16)
+    & (EEPROM.read(2) << 8) & EEPROM.read(3);
+
+  uint8_t* buffer = new uint8_t[numBytes];
+  for (size_t i = 0; i < numBytes; ++i) {
+    buffer[i] = EEPROM.read(4 + i);
+  }
+
+  pb_istream_t instream = pb_istream_from_buffer(buffer, numBytes);
+  pb_decode(&instream, PbCopterCommand_fields, &cmdMsg);
+  delete[] buffer;
+}
 
 void setup()
 {
   pinMode(13, OUTPUT);
-  digitalWrite(13, HIGH);
+  digitalWrite(13, LOW);
 
   Wire.begin();
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   imu.init();
   imu.setNeutral(10, 10);
+
+  readCmdMsgFromEEPROM();
+
+  digitalWrite(13, HIGH);
   ActuatorsST.init(); // takes some time (10s)
+  ActuatorsST.setParams(&cmdMsg);
+  digitalWrite(13, LOW);
+
   ControlST.init();
 
   lastTime = millis();
@@ -46,7 +94,6 @@ void setup()
   stateMsg.has_motorSpeed = true;
   stateMsg.has_accl = true;
 }
-
 
 void loop()
 {
@@ -73,6 +120,23 @@ void loop()
   Quaternion ref (-(ControlST.getPitch() - 0.5) * PI / 4.0, (ControlST.getRoll() - 0.5) * PI / 4.0, (ControlST.getYaw() - 0.5) * PI / 4.0);
   ActuatorsST.generateMotorValues(copterRot, ref, ControlST.getSpeed());
   ActuatorsST.applyMotorValues();
+
+  // Check for serial input
+  int numBytes = Serial.available();
+  if (numBytes > 0) {
+    uint8_t* buf = new uint8_t[numBytes];
+    Serial.readBytes((char*) buf, numBytes);
+    pb_istream_t instream = pb_istream_from_buffer(buf, numBytes);
+    pb_decode(&instream, PbCopterCommand_fields, &cmdMsg);
+    delete[] buf;
+
+    if (firstCmdMsg) {
+      writeCmdMsgToEEPROM();
+      firstCmdMsg = false;
+    }
+
+    ActuatorsST.setParams(&cmdMsg);
+  }
 
   // Fill state message
   stateMsg.accl.x = imu.meanAccl.x;

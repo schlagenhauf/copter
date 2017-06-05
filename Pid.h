@@ -14,6 +14,15 @@ using namespace Geometry;
 class Pid
 {
  public:
+  Pid()
+  {
+    coeffP_ = 0;
+    coeffI_ = 0;
+    coeffD_ = 0;
+    integError = 0;
+    lastError = 0;
+  }
+
 #ifdef _GTEST_ON
   FRIEND_TEST(pid_tests, pid_ctor);
 #endif
@@ -26,6 +35,8 @@ class Pid
   FRIEND_TEST(pid_tests, pid_functor);
 #endif
   double operator()(const double& actual, const double& target);
+
+  void setParams(double p, double i, double d);
 
  private:
   double coeffP_, coeffI_, coeffD_;
@@ -44,4 +55,10 @@ double Pid::operator()(const double& actual, const double& target)
   lastError = error;
 
   return ((error * coeffP_) + (integError * coeffI_) + (dError * coeffD_));
+}
+
+void Pid::setParams(double p, double i, double d) {
+  coeffP_ = p;
+  coeffI_ = i;
+  coeffD_ = d;
 }
