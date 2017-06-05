@@ -1,0 +1,5 @@
+# Python temp files
+*.pyc
+
+# Generated protobuf files
+*_pb2.py
