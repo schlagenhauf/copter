@@ -40,12 +40,12 @@ class RemoteConfig(QtGui.QMainWindow):
         # for some reason this achieves to force all elements to minimum size
         grid.setSizeConstraint(QtGui.QLayout.SetFixedSize)
 
-        self.spinBoxes = []
+        self.inputGroups = []
         fns = list(itertools.chain(*self.pp.getFieldNames()))
         for fn in fns:
             # create group box with vertical layout
             gb = QtGui.QGroupBox(w)
-            gbLayout = QtGui.QHBoxLayout()
+            gbLayout = QtGui.QGridLayout()
             gb.setLayout(gbLayout)
 
             # add label
@@ -53,16 +53,25 @@ class RemoteConfig(QtGui.QMainWindow):
             lb.setText(fn)
             gbLayout.addWidget(lb)
 
+            # add edit box
+            #le = QtGui.QLineEdit()
+            #le.setText(str(self.pp.getFieldByPath(fn)))
+            #gbLayout.addWidget(le)
+
             # add spin box
             sb = QtGui.QDoubleSpinBox(w)
             sb.setObjectName(fn)
+            sb.setSingleStep(0.01)
+            sb.setMaximum(100)
+            sb.setMinimum(-100)
+            #sb.setDecimals(5)
             sb.setValue(self.pp.getFieldByPath(fn))
             sb.valueChanged.connect(lambda w, name = fn: self.spinBoxChanged(name, w))
-            self.spinBoxes.append(sb)
             gbLayout.addWidget(sb)
 
             # add group to main grid layout
             grid.addWidget(gb)
+
 
         # TODO: load PB message from file and send it out completely
 
@@ -75,7 +84,6 @@ class RemoteConfig(QtGui.QMainWindow):
         if self.s.connected:
             self.timer.stop()
 
-
     def spinBoxChanged(self, name, value):
         self.pp.setFieldByPath(name, value)
         try:
@@ -83,7 +91,6 @@ class RemoteConfig(QtGui.QMainWindow):
             self.s.transmit(bts)
         except PbEncodeException as pbex:
             print "Error while encoding pb message: %s" % str(pbex)
-
 
     def saveValuesAsPbMsg(self):
         bts = self.pp.message2bytes(self.pp.accumMsg)

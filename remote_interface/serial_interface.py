@@ -13,7 +13,7 @@ class SerialInterface(object):
 
     def __init__(self, comport):
         self.comport = comport
-        self.baud = 9600
+        self.baud = 115200
         self.bytesize = serial.SEVENBITS
         self.connected = False
         self.data = ""
